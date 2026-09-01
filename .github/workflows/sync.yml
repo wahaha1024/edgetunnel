@@ -42,3 +42,39 @@ jobs:
             fi
             git push origin main
           fi
+
+      - name: Deploy synced Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "[Error] Missing GitHub Actions secret CLOUDFLARE_API_TOKEN."
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "[Error] Missing GitHub Actions variable CLOUDFLARE_ACCOUNT_ID."
+            exit 1
+          fi
+
+          cp wrangler.toml .wrangler-edgetunnel.toml
+          cat >> .wrangler-edgetunnel.toml <<'EOF'
+
+          [[kv_namespaces]]
+          binding = "KV"
+          id = "44e7f471224e4658ab099cc8908361ed"
+
+          [[routes]]
+          pattern = "v.zjyyy.top"
+          custom_domain = true
+
+          [observability]
+          enabled = true
+          head_sampling_rate = 1
+          EOF
+
+          npx --yes wrangler@4.61.1 deploy \
+            --config .wrangler-edgetunnel.toml \
+            --name edgetunnel \
+            --keep-vars \
+            --domains v.zjyyy.top
