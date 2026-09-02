@@ -60,6 +60,9 @@ jobs:
           cp wrangler.toml .wrangler-edgetunnel.toml
           cat >> .wrangler-edgetunnel.toml <<'EOF'
 
+          workers_dev = true
+          preview_urls = true
+
           [[kv_namespaces]]
           binding = "KV"
           id = "44e7f471224e4658ab099cc8908361ed"
