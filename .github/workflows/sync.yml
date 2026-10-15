@@ -24,6 +24,11 @@ jobs:
           fetch-depth: 0
           ref: main
 
+      - name: Record worker fingerprint before sync
+        id: before
+        run: |
+          echo "hash=$(git rev-parse HEAD:_worker.js)" >> "$GITHUB_OUTPUT"
+
       - name: Sync upstream changes
         run: |
           git config user.name "GH Action - Upstream Sync"
@@ -49,7 +54,22 @@ jobs:
       - name: Install pinned wrangler
         run: npm install --no-save wrangler@4.61.1
 
+      - name: Detect whether worker code changed
+        id: chk
+        env:
+          BEFORE_HASH: ${{ steps.before.outputs.hash }}
+        run: |
+          AFTER_HASH=$(git rev-parse HEAD:_worker.js)
+          if [ "$BEFORE_HASH" = "$AFTER_HASH" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "==> _worker.js unchanged ($AFTER_HASH); skipping deploy."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "==> _worker.js changed: $BEFORE_HASH -> $AFTER_HASH; deploying."
+          fi
+
       - name: Deploy synced Worker
+        if: steps.chk.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
